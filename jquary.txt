@@ -1,0 +1,409 @@
+var selector = {
+    $div: function () { return $("header div") },//点击切换状态
+    $btn: function () { return $(".btn") }, //编辑按钮
+    //$usedVGUID: function () { return $("#usedVGUID") },//保存usedVGUID
+
+    $operation: function () { return $("#operation") }, //底部状态
+    $choice: function () { return $(".choice") }, // check显示或者隐藏
+    $inputA: function () { return $("input[name=a]") }, //所有的加班明细
+    $inputB: function () { return $("input[name=b]") }, //全选按钮
+
+    $ISExamineovertime: function () { return $(".ISExamineovertime") }, //已审批的加班单
+    $IScound: function () { return $(".IS-cound") },//显示已审批数据个数
+
+    $ISRefuseovertime: function () { return $(".ISRefuseovertime") }, //已拒绝的加班单
+    $ISRefucound: function () { return $(".ISRefu-cound") }, //显示已拒绝数据个数
+
+    $NOExamineovertime: function () { return $(".NOExamineovertime") }, //待审批的加班单
+    $NOcound: function () { return $(".NO-cound") },//显示待审批数据个数
+
+
+    $footer: function () { return $("footer") }, //填充数据的父元素
+    $footerswiperslide: function () { return $("footer .swiper-wrapper") },
+    $coverSJ: function () { return $("#coverSJ") }, //显示提示信息
+    $cover: function () { return $(".cover") },//加载数据样式
+
+    $agree: function () { return $(".agree") },//点击同意按钮
+    $return: function () { return $(".return") }, //点击退回按钮
+    $refuse: function () { return $(".refuse") }, //点击拒绝按钮
+
+    $leaveItem: function () { return $(".leaveItem") }, //点击详细数据跳转详情页面
+    $openApiAddress: function () { return $("#openApiAddress") },//api访问地址
+    $OpenNetAddress: function () { return $("#OpenNetAddress") },//外网访问地址
+    $userVguid: function () { return $("#UserVguid") },
+    $UserCode: function () { return $("#UserCode") },
+    $corpID: function () { return $("#corpID") }//企业号公司ID
+
+};
+var swiperTranslate = 0;
+var typeClickId = "NOExamineovertime"; //显示哪一个被点击
+//全局优先加载JS
+var $page = function () {
+
+    this.init = function () {
+        addEvent();
+    }
+
+    //所有事件
+    function addEvent() {
+
+    }; //addEvent end
+    var idNum = 0;
+    //页面加载的时候获取数据
+    var ISExamineovertimeList = [];  //储存已审批的加班单
+    var ISRefuseovertimeList = [];   //储存已拒绝的加班单
+    var NOExamineovertimeList = [];   //储存待审批的加班单 
+    var count = 1; //记录全选功能点击次数
+
+    var UserId = selector.$userVguid().val();
+    selector.$cover().show();
+    console.log(UserId);
+
+    var page = 1;  //记载当前请求的是第几条数据
+      
+    //默认加载数据(第一次加载数据)
+    getAjaxData("NOExamineovertime");
+
+    //上拉加载数据
+    //var loadingStr = '<div class="spinner"><div class="spinner-container container1"><div class="circle1"></div><div class="circle2"></div><div class="circle3"></div><div class="circle4"></div></div><div class="spinner-container container2"><div class="circle1"></div><div class="circle2"></div><div class="circle3"></div><div class="circle4"></div></div><div class="spinner-container container3"><div class="circle1"></div><div class="circle2"></div><div class="circle3"></div><div class="circle4"></div></div></div>';
+    var swiper = new Swiper('.swiper-container', {
+        scrollbar: '.swiper-scrollbar',
+        direction: 'vertical',
+        slidesPerView: 'auto',
+        mousewheelControl: true,
+        freeMode: true,
+        onTouchEnd: function (swiper) {
+            selector.$coverSJ().hide();
+
+            console.log(swiper.translate);
+            if (swiper.translate < swiperTranslate) { //判断上拉加载新数据
+                swiperTranslate = swiper.translate < -100 ? swiper.translate + 100 : swiper.translate;
+                if (swiper.isEnd) {
+                    selector.$cover().show();
+                    getAjaxSwiperData(typeClickId);
+                    swiper.slideNext();
+                }
+            }
+        }
+    });
+
+    //点击已审批界面
+    selector.$ISExamineovertime().on('click', function () {
+        selector.$cover().show();
+        selector.$coverSJ().html("");
+        swiperTranslate = 0;
+        page = 1;
+        selector.$operation().hide();
+        selector.$footerswiperslide().html("");
+        selector.$btn().css("display", "none");
+        $(this).addClass("selected").siblings().removeClass("selected");
+        typeClickId = $(this).attr("id");
+        getAjaxData(typeClickId);
+    })
+    //点击已拒绝界面
+    selector.$ISRefuseovertime().on('click', function () {
+        selector.$cover().show();
+        selector.$coverSJ().html("");
+        swiperTranslate = 0;
+        page = 1;
+        selector.$operation().hide();
+        selector.$footerswiperslide().html("");
+        selector.$btn().css("display", "none");
+        $(this).addClass("selected").siblings().removeClass("selected");
+        typeClickId = $(this).attr("id");
+        getAjaxData(typeClickId);
+
+    })
+    //点击待审批界面
+    selector.$NOExamineovertime().on('click', function () {
+        selector.$cover().show();
+        selector.$coverSJ().html("");
+        swiperTranslate = 0;
+        page = 1;
+        //if (selector.$btn().html() == "完成") {
+        //    selector.$operation().show();
+        //} else {
+        //    selector.$operation().hide();
+        //}
+        selector.$btn().html("编辑");
+        selector.$operation().hide();
+        selector.$footerswiperslide().html("");
+        selector.$btn().show();
+        $(this).addClass("selected").siblings().removeClass("selected");
+        typeClickId = $(this).attr("id");
+        getAjaxData(typeClickId);
+
+    })
+
+    //点击编辑按钮
+    selector.$btn().on("click", function () {
+        // 		1.记录当前点击次数.count
+        count++;
+        if (count % 2 != 0) {
+            selector.$btn().html("编辑");
+            selector.$btn().css("color", "rgb(169,169,169)");
+            selector.$choice().css("display", "none");
+            selector.$operation().css("display", "none");
+        } else {
+            selector.$btn().html("完成");
+            selector.$btn().css("color", "rgb(54,198,211)");
+            selector.$operation().css("display", "block");
+            selector.$choice().css("display", "block");
+        }
+    })
+    //全选按钮控制
+    selector.$inputB().on("click", function () {
+        //判断当前点击的复选框处于什么状态$(this).is(":checked") 返回的是布尔类型
+        if ($(this).is(":checked")) {
+            selector.$inputA().prop("checked", true);
+        } else {
+            selector.$inputA().prop("checked", false);
+        }
+    })
+    //点击同意按钮
+    selector.$agree().on("click", function () {
+        selector.$cover().show();
+        var list = [];
+        var comment = "";
+        var inputCheckBox = $(".leaveItem input[type='checkbox']");
+        inputCheckBox.each(function () {
+            var th = $(this);
+            if (th.is(":checked")) {
+                list.push(th.parent().siblings().find(".vguid").html());
+            }
+        })
+        var vguidList = JSON.stringify(list);
+        $.ajax({
+            url: selector.$openApiAddress().val() + "/AgreeLeave?UserId=" + selector.$userVguid().val() + "&VGUID=" + vguidList,
+            //url: "http://172.16.2.60:8066/AgreeLeave?UserId=" + selector.$userVguid().val() + "&VGUID=" + vguidList,
+            type: "get",
+            success: function (data) {
+                selector.$cover().hide();
+                if (data.isSuccess == true) {
+                    alert("操作成功");
+                    getAjaxData(typeClickId);
+                } else {
+                    alert("操作失败");
+                }
+            }
+        });
+    });
+    //点击退回按钮
+    selector.$return().on("click", function () {
+        selector.$cover().show();
+        var list = [];
+        var comment = "";
+        var inputCheckBox = $(".leaveItem input[type='checkbox']");
+        inputCheckBox.each(function () {
+            var th = $(this);
+            if (th.is(":checked")) {
+                list.push(th.parent().siblings().find(".vguid").html());
+            }
+        })
+        var vguidList = JSON.stringify(list);
+        $.ajax({
+            url: selector.$openApiAddress().val() + "/BackLeave?UserId=" + selector.$userVguid().val() + "&VGUID=" + vguidList,
+            //url: "http://172.16.2.60:8066/BackLeave?UserId=" + selector.$userVguid().val() + "&VGUID=" + vguidList,
+            type: "get",
+            success: function (data) {
+                selector.$cover().hide();
+                if (data.isSuccess == true) {
+                    alert("操作成功");
+                    getAjaxData(typeClickId);
+                } else {
+                    alert("操作失败");
+                }
+            }
+        });
+    })
+    //点击拒绝按钮
+    selector.$refuse().on("click", function () {
+        selector.$cover().show();
+        var list = [];
+        var comment = "";
+        var inputCheckBox = $(".leaveItem input[type='checkbox']");
+        inputCheckBox.each(function () {
+            var th = $(this);
+            if (th.is(":checked")) {
+                list.push(th.parent().siblings().find(".vguid").html());
+            }
+        })
+        var vguidList = JSON.stringify(list);
+        $.ajax({
+            url: selector.$openApiAddress().val() + "/RefuseLeave?UserId=" + selector.$userVguid().val() + "&VGUID=" + vguidList,
+            //url: "http://172.16.2.60:8066/RefuseLeave?UserId=" + selector.$userVguid().val() + "&VGUID=" + vguidList,
+            type: "get",
+            success: function (data) {
+                selector.$cover().hide();
+                if (data.isSuccess == true) {
+                    alert("操作成功");
+                    getAjaxData(typeClickId);
+                } else {
+                    alert("操作失败");
+                }
+            }
+        });
+    });
+    //通过不同点击div的id，区分调用哪个ajax
+    function getAjaxData(typeID) {
+        switch (typeID) {
+            case "NOExamineovertime":
+                ajaxData(selector.$openApiAddress().val() + "/GetNOExamineInfo?UserId=" + selector.$userVguid().val() + "&PageCurrent=" + page + "&PageSize=" + 2, "待审批");
+                //alert(selector.$openApiAddress().val() + "/GetNOExamineInfo?UserId=" + selector.$userVguid().val() + "&PageCurrent=" + page + "&PageSize=" + 2);
+                break;
+            case "ISExamineovertime":
+                ajaxData(selector.$openApiAddress().val() + "/GetIsExamineInfo?UserId=" + selector.$userVguid().val() + "&PageCurrent=" + page + "&PageSize=" + 2, "已审批");
+                break;
+            case "ISRefuseovertime":
+                ajaxData(selector.$openApiAddress().val() + "/GetISRefuseLeaveInfo?UserId=" + selector.$userVguid().val() + "&PageCurrent=" + page + "&PageSize=" + 2, "已拒绝");
+                break;
+        }
+    }
+    //点击加载数据的ajax请求
+    function ajaxData(url, tab) {
+        $.ajax({
+            url: url,
+            type: "get",
+            async: false,
+            success: function (data) {
+                selector.$cover().hide();
+                var list = JSON.parse(data);
+                //填充第一次数据
+                if (list.length > 0) {
+                    var appendStr = "";
+                    var htmlItem = "";
+                    for (var i = 0; i < list.length; i++) {
+                        var id = "leaveItemId" + idNum++;
+                        htmlItem += '<div class="leaveItem" id="' + id + '" >'
+                                        + '<span class="choice" style="display: none;">'
+                                            + '<input type="checkbox" name="a">'
+                                        + '</span>'
+                                        + '<div class="leave" onclick = "leaveItemClick(this)">'
+                                            + '<div class="userName">' + list[i].DCNAMECHS + '</div>'
+                                            + '<div class="leaveTime">'
+                                                + '<span>请假时间:</span>'
+                                                + '<span class="l_Time">' + list[i].OTDATE + '</span>'
+                                            + '</div>'
+                                            + '<div class="leaveType">'
+                                                + '<span>请假类型:</span>'
+                                                + '<span class="l_Type">' + list[i].OTTYPE + '</span>'
+                                                + '<span class="vguid" style="display:none">' + list[i].VGUID + '</span>'
+                                            + '</div>'
+                                        + '</div>'
+                                        + '<div class="state">' + tab + '</div>'
+                                    + '</div>'
+                    }
+                    appendStr = htmlItem;
+                    selector.$footerswiperslide().html(('<div class="swiper-slide">' + appendStr + '</div>'));
+                    selector.$NOcound().html("");
+                    selector.$coverSJ().show();
+                    htmlItem = "拉我加载更多";
+                    selector.$coverSJ().html(htmlItem);
+                } else {
+                    selector.$NOcound().html("");
+                    selector.$coverSJ().show();
+                    htmlItem = "暂无更多数据！！";
+                    selector.$coverSJ().html(htmlItem);
+                }
+            }
+        });
+    }
+    //根据不同的参数 获取swiper
+    function getAjaxSwiperData(typeID) {
+        switch (typeID) {
+            case "NOExamineovertime":
+                page++;
+                ajaxSwiper(selector.$openApiAddress().val() + "/GetNOExamineInfo?UserId=" + selector.$userVguid().val() + "&PageCurrent=" + page + "&PageSize=" + 2, "待审批");
+                break;
+            case "ISExamineovertime":
+                page++;
+                ajaxSwiper(selector.$openApiAddress().val() + "/GetIsExamineInfo?UserId=" + selector.$userVguid().val() + "&PageCurrent=" + page + "&PageSize=" + 2, "已审批");
+                break;
+            case "ISRefuseovertime":
+                page++;
+                ajaxSwiper(selector.$openApiAddress().val() + "/GetISRefuseLeaveInfo?UserId=" + selector.$userVguid().val() + "&PageCurrent=" + page + "&PageSize=" + 2, "已拒绝");
+                break;
+        }
+    }
+    //判断上拉手势请求的ajax数据
+    function ajaxSwiper(url, tab) {
+        //删除loading提示
+        //selector.$footerswiperslide().html("");
+        swiper.removeSlide(page);
+        selector.$cover().show();
+        $.ajax({
+            url: url,
+            type: "get",
+            async: false,
+            success: function (data) {
+                selector.$cover().hide();
+                var list = JSON.parse(data);
+                //填充第一次数据
+                if (list.length > 0) {
+                    var appendStr = "";
+                    var htmlItem = "";
+                    for (var i = 0; i < list.length; i++) {
+                        var id = "leaveItemId" + idNum++;
+                        htmlItem += '<div class="leaveItem" id="' + id + '" >'
+                                        + '<span class="choice" style="display: none;">'
+                                            + '<input type="checkbox" name="a">'
+                                        + '</span>'
+                                        + '<div class="leave" onclick = "leaveItemClick(this)">'
+                                            + '<div class="userName">' + list[i].DCNAMECHS + '</div>'
+                                            + '<div class="leaveTime">'
+                                                + '<span>请假时间:</span>'
+                                                + '<span class="l_Time">' + list[i].OTDATE + '</span>'
+                                            + '</div>'
+                                            + '<div class="leaveType">'
+                                                + '<span>请假类型:</span>'
+                                                + '<span class="l_Type">' + list[i].OTTYPE + '</span>'
+                                                + '<span class="vguid" style="display:none">' + list[i].VGUID + '</span>'
+                                            + '</div>'
+                                        + '</div>'
+                                        + '<div class="state">' + tab + '</div>'
+                                    + '</div>'
+
+                    }
+                    appendStr = htmlItem;
+                    swiper.appendSlide('<div class="swiper-slide">' + appendStr + '</div>');
+
+                } else {
+                    selector.$NOcound().html("");
+                    selector.$coverSJ().show();
+                    htmlItem = "暂无更多数据！！";
+                    selector.$coverSJ().html(htmlItem);
+                }
+            }
+        });
+        swiper.params.onlyExternal = false;
+    }
+};
+//判断当前那个类型被点击
+function typeClick() {
+    if (selector.$btn().show() == true) {
+        selector.$btn().hide();
+        selector.$choice().css("display", "none");
+    } else {
+        selector.$btn().hide();
+        selector.$choice().css("display", "none");
+    }
+    if (selector.$operation().show() == true) {
+        selector.$operation().hide();
+    } else {
+        selector.$operation().hide();
+    }
+}
+
+//点击详细明细跳转页面
+function leaveItemClick(event) {
+    var vguid = $(event).find(".vguid").html();
+  
+    window.location.href = $("#OpenHttpAddress").val() + "/MyApplicationManagement/LeaveBill/CheckLeaveBillDetail?userVguid=" + selector.$userVguid().val() + "&billVguid=" + vguid + "&typeClickId=" + typeClickId;
+    //alert($("#OpenHttpAddress").val() + "/MyApplicationManagement/LeaveBill/CheckLeaveBillDetail?userVguid=" + selector.$userVguid().val() + "&billVguid=" + vguid + "&typeClickId=" + typeClickId);
+    //alert($("#OpenHttpAddress").val() + "/MyApplicationManagement/LeaveBill/CheckLeaveBillDetail?userVguid=" + selector.$userVguid().val() + "&billVguid=" + vguid);
+};
+//加载页面
+$(function () {
+    var page = new $page();
+    page.init();
+})
